@@ -1,0 +1,43 @@
+trigger:
+  branches:
+    include:
+      - main  # Trigger on main branch commits
+
+pool:
+  vmImage: 'windows-latest'  # Use latest Windows VM
+
+variables:
+  buildConfiguration: 'Release'
+  dotnetVersion: '6.0.x'  # Adjust to your .NET version
+
+steps:
+  - task: UseDotNet@2
+    displayName: 'Install .NET SDK'
+    inputs:
+      packageType: 'sdk'
+      version: '$(dotnetVersion)'
+
+  - script: dotnet restore
+    displayName: 'Restore Dependencies'
+
+  - script: dotnet build --configuration $(buildConfiguration) --no-restore
+    displayName: 'Build Solution'
+
+  - script: dotnet test --configuration $(buildConfiguration) --no-build --verbosity normal
+    displayName: 'Run Tests'
+
+  - script: dotnet publish -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)
+    displayName: 'Publish Artifact'
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Save Build Artifact'
+    inputs:
+      pathToPublish: '$(Build.ArtifactStagingDirectory)'
+      artifactName: 'drop'
+
+  - task: AzureWebApp@1
+    displayName: 'Deploy to Azure App Service'
+    inputs:
+      azureSubscription: '<Your Azure Service Connection>'
+      appName: '<Your App Service Name>'
+      package: '$(Build.ArtifactStagingDirectory)/*.zip'
